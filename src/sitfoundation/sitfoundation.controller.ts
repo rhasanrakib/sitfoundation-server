@@ -1,27 +1,32 @@
 import {
-  Body,
   Controller,
-  Delete,
   Get,
   HttpStatus,
-  Param,
-  Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { UpdateSitfoundationDto } from './dto/update-sitfoundation.dto';
+import {
+  IndividualResultDto,
+  ResultBySequenceDto,
+  ResultByYearDto,
+} from './dto/result.dto';
+import { ResponseInterceptor } from './interceptor/response.interceptor';
 import { CommonSerializer } from './serializer/common.serializer';
+import { ResultSerializer } from './serializer/result.serializer';
 import { SitfoundationService } from './sitfoundation.service';
 @Controller('sitfoundation')
 export class SitfoundationController {
   constructor(private readonly sitfoundationService: SitfoundationService) {}
 
-  @Post('insert-result')
+  @Post('insert-result-bulk')
   @UseInterceptors(
     FileInterceptor('result', {
       storage: diskStorage({
@@ -33,12 +38,13 @@ export class SitfoundationController {
         },
       }),
     }),
+    ResponseInterceptor,
   )
-  public async insertResult(
+  public async insertResultBulk(
     @UploadedFile() file: Express.Multer.File,
   ): Promise<CommonSerializer> {
     const fileDir = join(process.cwd(), 'upload/result_xls/' + file.filename);
-    const res = await this.sitfoundationService.insertResult(fileDir);
+    const res = await this.sitfoundationService.insertResultBulk(fileDir);
     if (res instanceof Error) {
       return new CommonSerializer(
         HttpStatus.BAD_REQUEST,
@@ -50,26 +56,82 @@ export class SitfoundationController {
     return new CommonSerializer(HttpStatus.OK, 'success', res, []);
   }
 
-  @Get()
-  findAll() {
-    return this.sitfoundationService.findAll();
+  @UseInterceptors(ResponseInterceptor)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Get('get-all-result-by-year')
+  public async getAllResultByYear(
+    @Query() resultByYear: ResultByYearDto,
+  ): Promise<ResultSerializer> {
+    const res = await this.sitfoundationService.getAllResultByYear(
+      resultByYear.passing_year,
+    );
+    if (res.length > 0) {
+      return new ResultSerializer(HttpStatus.OK, 'success', res, []);
+    } else {
+      return new ResultSerializer(
+        HttpStatus.NOT_FOUND,
+        'failed',
+        [],
+        'not found',
+      );
+    }
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.sitfoundationService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateSitfoundationDto: UpdateSitfoundationDto,
+  @UseInterceptors(ResponseInterceptor)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Get('get-all-result-by-sequence')
+  public async getAllResultBySequence(
+    @Query() resultBySequence: ResultBySequenceDto,
   ) {
-    return this.sitfoundationService.update(+id, updateSitfoundationDto);
+    const res = await this.sitfoundationService.getAllResultBySequence(
+      resultBySequence.sequence,
+    );
+    if (res.length > 0) {
+      return new ResultSerializer(HttpStatus.OK, 'success', res, []);
+    } else {
+      return new ResultSerializer(
+        HttpStatus.NOT_FOUND,
+        'failed',
+        [],
+        'not found',
+      );
+    }
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.sitfoundationService.remove(+id);
+  @UseInterceptors(ResponseInterceptor)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  @Get('get-individual-result')
+  public async getIndividualResult(
+    @Query() indiviualResult: IndividualResultDto,
+  ) {
+    const res = await this.sitfoundationService.getIndividualResult(
+      indiviualResult,
+    );
+    if (res) {
+      return new ResultSerializer(HttpStatus.OK, 'success', res, []);
+    } else {
+      return new ResultSerializer(
+        HttpStatus.NOT_FOUND,
+        'failed',
+        [],
+        'not found',
+      );
+    }
+  }
+
+  @UseInterceptors(ResponseInterceptor)
+  @Get('get-all-result')
+  public async getAllResult() {
+    const res = await this.sitfoundationService.getAllResult();
+    if (res.length > 0) {
+      return new ResultSerializer(HttpStatus.OK, 'success', res, []);
+    } else {
+      return new ResultSerializer(
+        HttpStatus.NOT_FOUND,
+        'failed',
+        [],
+        'not found',
+      );
+    }
   }
 }

@@ -8,6 +8,7 @@ export class MarksEntity {
   @Column({
     type: 'varchar',
     nullable: false,
+    unique: true,
   })
   reg_number: string;
 
