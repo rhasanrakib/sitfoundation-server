@@ -47,12 +47,7 @@ export class SitfoundationController {
         res.message,
       );
     }
-    return new CommonSerializer(
-      HttpStatus.OK,
-      'success',
-      'All result stroed in database',
-      [],
-    );
+    return new CommonSerializer(HttpStatus.OK, 'success', res, []);
   }
 
   @Get()
